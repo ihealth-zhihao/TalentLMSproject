@@ -5,7 +5,7 @@ Quick test: print TalentLMS mandatory registration fields.
 
 import requests
 import json
-from talentlms_config import DOMAIN, API_KEY
+from config import DOMAIN, API_KEY
 
 
 class TalentLMSClient:

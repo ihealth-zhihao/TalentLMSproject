@@ -7,3 +7,6 @@ talentlms_config.py
 *.pyc
 import_log_*.json
 *.pdf
+*.crt
+*.key
+adp_config.py

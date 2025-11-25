@@ -8,7 +8,7 @@ by fetching and displaying user information.
 import requests
 import json
 from typing import Dict, List, Optional
-from talentlms_config import DOMAIN, API_KEY
+from config import DOMAIN, API_KEY
 
 
 class TalentLMSClient:

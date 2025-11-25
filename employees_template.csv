@@ -1,2 +1,2 @@
-first_name,last_name,email,login,user_type
-Test,1,test.1@example.com,test.1,Learner
+first_name,last_name,email,login,user_type,password
+Test,1,test.1@example.com,test.1,Learner,password1

@@ -9,7 +9,7 @@ import json
 import csv
 from typing import Dict, List, Optional
 from datetime import datetime
-from talentlms_config import DOMAIN, API_KEY
+from config import DOMAIN, API_KEY
 
 
 class TalentLMSClient:
@@ -293,19 +293,22 @@ class EmployeeImporter:
 
     def save_import_log(self, output_file: str = None):
         """
-        Save import log to JSON file
-
-        Args:
-            output_file: Path to output file (default: import_log_TIMESTAMP.json)
+        Save import log to JSON file in import_logs/YYYYMMDD/
         """
+        from pathlib import Path
+        now = datetime.now()
+        date_str = now.strftime("%Y%m%d")
+        time_str = now.strftime("%H%M%S")
+        log_dir = Path("import_logs") / date_str
+        log_dir.mkdir(parents=True, exist_ok=True)
         if not output_file:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_file = f"import_log_{timestamp}.json"
-
-        with open(output_file, 'w', encoding='utf-8') as f:
+            output_file = str(log_dir / f"import_log_{time_str}.json")
+        else:
+            output_file = str(log_dir / output_file)
+        output_file_str = str(output_file)
+        with open(output_file_str, 'w', encoding='utf-8') as f:
             json.dump(self.import_log, f, indent=2)
-
-        print(f"\nImport log saved to {output_file}")
+        print(f"\nImport log saved to {output_file_str}")
 
 
 def print_summary(summary: Dict):
