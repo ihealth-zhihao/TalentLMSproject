@@ -17,9 +17,11 @@ Flow:
 import sys
 from typing import Dict, List, Optional
 
-from get_adp_employees import get_workers         
-from import_employees import TalentLMSClient      
+from get_adp_info import get_workers, find_worker_by_identifier
+from import_employees import TalentLMSClient
 from config import DOMAIN, API_KEY      
+
+COURSE_ID_ONBOARDING = 125  # "What is TalentLibrary?"
 
 
 # ------------- ADP helpers ------------- #
@@ -28,25 +30,6 @@ def get_all_workers() -> List[Dict]:
     """Call your existing get_workers() and return the list."""
     data = get_workers()  # should return {"workers": [...]}
     return data.get("workers", [])
-
-
-def worker_work_email(worker: Dict) -> Optional[str]:
-    """Get work email from ADP worker object."""
-    bc = worker.get("businessCommunication", {}) or {}
-    emails = bc.get("emails", []) or []
-    if emails:
-        return emails[0].get("emailUri")
-    return None
-
-
-def worker_personal_email(worker: Dict) -> Optional[str]:
-    """Get personal email as fallback."""
-    person = worker.get("person", {}) or {}
-    comm = person.get("communication", {}) or {}
-    emails = comm.get("emails", []) or []
-    if emails:
-        return emails[0].get("emailUri")
-    return None
 
 
 def worker_full_name(worker: Dict) -> str:
@@ -67,45 +50,27 @@ def worker_first_last(worker: Dict) -> (str, str):
     return first, last
 
 
-def find_worker_by_identifier(workers: List[Dict], identifier: str) -> Optional[Dict]:
+def get_work_email(worker: Dict) -> Optional[str]:
     """
-    Try to locate a worker by:
-      - work email
-      - personal email
-      - workerID.idValue
-      - formattedName match (case-insensitive)
+    Extract work/business email from ADP worker.
+    Prioritizes businessCommunication over personal email.
+    Returns None if no work email found.
     """
+    # Try businessCommunication first (work email)
+    bc = worker.get("businessCommunication", {}) or {}
+    emails = bc.get("emails", []) or []
+    if emails and isinstance(emails, list):
+        for email_obj in emails:
+            if isinstance(email_obj, dict):
+                email_uri = email_obj.get("emailUri")
+                if email_uri:
+                    return email_uri.strip()
 
-    ident_lower = identifier.lower()
-
-    # 1) Email match (work or personal) if identifier looks like an email
-    if "@" in identifier:
-        for w in workers:
-            work_email = worker_work_email(w)
-            personal_email = worker_personal_email(w)
-
-            if work_email and work_email.lower() == ident_lower:
-                return w
-            if personal_email and personal_email.lower() == ident_lower:
-                return w
-
-    # 2) workerID (Associate ID) match
-    for w in workers:
-        worker_id = (w.get("workerID", {}) or {}).get("idValue")
-        if worker_id and worker_id.lower() == ident_lower:
-            return w
-
-    # 3) formatted name match
-    for w in workers:
-        name = worker_full_name(w).lower()
-        if name == ident_lower:
-            return w
-
-    # If nothing matched, return None
     return None
 
 
 # ------------- TalentLMS sync ------------- #
+
 
 def sync_single_employee(identifier: str) -> None:
     """
@@ -124,10 +89,11 @@ def sync_single_employee(identifier: str) -> None:
 
     print(f"Found worker in ADP: {worker_full_name(worker)}")
 
-    # Extract email (prefer work email, then personal)
-    email = worker_work_email(worker) or worker_personal_email(worker)
+    # Extract work email for TalentLMS registration (must be company domain)
+    email = get_work_email(worker)
     if not email:
-        print("This worker has no email in ADP; cannot create TalentLMS account.")
+        print("This worker has no work email in ADP; cannot create TalentLMS account.")
+        print("Note: TalentLMS requires company domain emails, not personal emails.")
         return
 
     first_name, last_name = worker_first_last(worker)
@@ -161,8 +127,8 @@ def sync_single_employee(identifier: str) -> None:
         last_name=last_name,
         email=email,
         login=email,
-        password="testpassword1",          # Dummy hardcoded password
-        user_type="Learner",    # default role
+        password="Testpassword1",          # Dummy hardcoded password
+        # user_type="learner",    # default role
     )
 
     print("Successfully created TalentLMS user:")
@@ -170,6 +136,15 @@ def sync_single_employee(identifier: str) -> None:
     print(f"  Name: {created.get('first_name')} {created.get('last_name')}")
     print(f"  Login: {created.get('login')}")
     print(f"  Email: {created.get('email')}")
+
+    
+    try:
+        client.add_user_to_course(int(created.get('id')), COURSE_ID_ONBOARDING)
+        print(f"  → Enrolled user {created.get('id')} in course {COURSE_ID_ONBOARDING}")
+    except Exception as e:
+        print(
+            f"  User was created but enrollment in course {COURSE_ID_ONBOARDING} failed: {e}"
+        )
 
 
 # ------------- CLI entrypoint ------------- #

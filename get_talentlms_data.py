@@ -62,7 +62,10 @@ class TalentLMSClient:
         Returns:
             List of user dictionaries
         """
-        return self._make_request('/users')
+        result = self._make_request('/users')
+        if isinstance(result, dict):
+            return [result]
+        return result
 
     def get_user_by_id(self, user_id: int) -> Dict:
         """
@@ -138,10 +141,13 @@ def main():
         # Optional: Get details of the first user
         if users:
             first_user_id = users[0].get('id')
-            print(f"\nFetching detailed information for user ID {first_user_id}...")
-            user_detail = client.get_user_by_id(first_user_id)
-            print(f"\nDetailed User Information:")
-            print(json.dumps(user_detail, indent=2))
+            if isinstance(first_user_id, int):
+                print(f"\nFetching detailed information for user ID {first_user_id}...")
+                user_detail = client.get_user_by_id(first_user_id)
+                print(f"\nDetailed User Information:")
+                print(json.dumps(user_detail, indent=2))
+            else:
+                print("\nFirst user does not have a valid 'id'.")
 
         print("\n✓ Successfully retrieved data from TalentLMS!")
 

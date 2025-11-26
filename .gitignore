@@ -9,4 +9,5 @@ import_log_*.json
 *.pdf
 *.crt
 *.key
-adp_config.py
+config.py
+*.json

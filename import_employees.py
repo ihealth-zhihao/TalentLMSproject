@@ -119,7 +119,10 @@ class TalentLMSClient:
         Returns:
             List of course dictionaries
         """
-        return self._make_request('/courses')
+        response = self._make_request('/courses')
+        if isinstance(response, dict):
+            return [response]
+        return response
 
     def get_user_by_email(self, email: str) -> Optional[Dict]:
         """
@@ -141,6 +144,35 @@ class TalentLMSClient:
             raise
         except:
             return None
+        
+    def delete_user(
+        self,
+        user_id: int,
+        permanent: bool = True,
+        deleted_by_user_id: int | None = None,
+    ) -> dict:
+        """
+        Delete a user from TalentLMS.
+
+        Args:
+            user_id: ID of the user to delete
+            permanent: If True, delete permanently (cannot be restored)
+            deleted_by_user_id: Optional ID of the user performing the deletion
+
+        Returns:
+            Response dictionary from TalentLMS
+        """
+        data: dict[str, str | int] = {
+            "user_id": user_id,
+        }
+
+        if deleted_by_user_id is not None:
+            data["deleted_by_user_id"] = deleted_by_user_id
+
+        if permanent:
+            data["permanent"] = "yes"
+
+        return self._make_request("/deleteuser", method="POST", data=data)
 
 
 class EmployeeImporter:
@@ -291,7 +323,7 @@ class EmployeeImporter:
 
         return summary
 
-    def save_import_log(self, output_file: str = None):
+    def save_import_log(self, output_file: str = ""):
         """
         Save import log to JSON file in import_logs/YYYYMMDD/
         """
